@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Solar Inverter Predictive Maintenance — Interactive Showcase</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    .tab-btn.active {
+      background-color: #0f172a;
+      color: #ffffff;
+      border-color: #0f172a;
+    }
+    input[type="range"] {
+      accent-color: #0284c7;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
+
+  <!-- Top Header -->
+  <header class="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-amber-300">
+          <i data-lucide="sun" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold tracking-tight leading-tight">Solar Inverter Predictive Maintenance</h1>
+          <p class="text-xs text-slate-400">200 W Grid-Tied PV Inverter · Simulink + Two-Time-Scale Ageing + AI Prognostics</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 sm:gap-3">
+        <span id="dataStatusBadge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/20 text-amber-200 border border-amber-400/30">
+          <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+          Demo Preview (6 Units)
+        </span>
+        <label for="csvFileInput" class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-500 hover:bg-sky-400 text-white transition">
+          <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+          Upload dataset.csv
+        </label>
+        <input id="csvFileInput" type="file" accept=".csv,text/csv" class="hidden" />
+      </div>
+    </div>
+  </header>
+
+  <!-- Toast Notification -->
+  <div id="toastBanner" class="hidden fixed bottom-5 right-5 z-50 max-w-sm bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg border border-slate-700 text-sm flex items-center gap-2">
+    <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400 shrink-0"></i>
+    <span id="toastText">Dataset loaded.</span>
+  </div>
+
+  <!-- Navigation Tabs -->
+  <nav class="bg-white border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center gap-2 overflow-x-auto">
+      <button type="button" data-tab="simulator" class="tab-btn active shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium border border-slate-200 text-slate-700 hover:bg-slate-100 transition">
+        <i data-lucide="activity" class="w-4 h-4"></i> Live Inverter Simulator
+      </button>
+      <button type="button" data-tab="explorer" class="tab-btn shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium border border-slate-200 text-slate-700 hover:bg-slate-100 transition">
+        <i data-lucide="database" class="w-4 h-4"></i> Fleet Dataset Explorer
+      </button>
+      <button type="button" data-tab="maintenance" class="tab-btn shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium border border-slate-200 text-slate-700 hover:bg-slate-100 transition">
+        <i data-lucide="wrench" class="w-4 h-4"></i> Maintenance Cost Lab
+      </button>
+      <button type="button" data-tab="architecture" class="tab-btn shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium border border-slate-200 text-slate-700 hover:bg-slate-100 transition">
+        <i data-lucide="cpu" class="w-4 h-4"></i> Architecture &amp; Specs
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 flex-1 space-y-6">
+
+    <!-- ==================== TAB 1: LIVE SIMULATOR ==================== -->
+    <section id="tab-simulator" class="space-y-6">
+      <!-- Health & Decision Banner -->
+      <div id="decisionBanner" class="rounded-xl p-4 border flex flex-wrap items-center justify-between gap-4 bg-emerald-50 border-emerald-200">
+        <div class="flex items-center gap-3">
+          <div id="decisionIconWrap" class="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+            <i data-lucide="shield-check" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">AI Health State:</span>
+              <span id="simStateBadge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-600 text-white">0: Healthy</span>
+              <span id="simAnomalyBadge" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-200 text-slate-700">Normal Baseline</span>
+            </div>
+            <p id="simActionText" class="text-sm font-medium text-slate-800 mt-1">All electrical and thermal indicators are within healthy bounds. Continue routine monitoring.</p>
+          </div>
+        </div>
+        <div class="text-right">
+          <p class="text-xs text-slate-500 font-medium">Estimated Capacitor RUL</p>
+          <p id="simRulDisplay" class="text-2xl font-bold text-slate-900">18,400 h</p>
+        </div>
+      </div>
+
+      <!-- Controls + Telemetry Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Left: Interactive Controls -->
+        <div class="lg:col-span-4 bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-5">
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wide">Operating &amp; Ageing Controls</h2>
+            <span class="text-[11px] text-slate-400">Real-time physics</span>
+          </div>
+
+          <!-- Quick Presets -->
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" data-preset="healthy" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 transition">Healthy (STC)</button>
+            <button type="button" data-preset="cap" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition">Cap Degraded</button>
+            <button type="button" data-preset="igbt" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-medium bg-orange-50 text-orange-800 border border-orange-200 hover:bg-orange-100 transition">IGBT Degraded</button>
+            <button type="button" data-preset="both" class="preset-btn px-2.5 py-1.5 rounded-lg text-xs font-medium bg-rose-50 text-rose-800 border border-rose-200 hover:bg-rose-100 transition">Both Near EOL</button>
+          </div>
+
+          <div class="space-y-4">
+            <div>
+              <div class="flex justify-between text-xs font-medium mb-1">
+                <label for="sliderG" class="text-slate-700">Solar Irradiance (G)</label>
+                <span id="valG" class="font-bold text-sky-700">1000 W/m²</span>
+              </div>
+              <input id="sliderG" type="range" min="400" max="1000" step="10" value="1000" class="w-full" />
+            </div>
+
+            <div>
+              <div class="flex justify-between text-xs font-medium mb-1">
+                <label for="sliderTamb" class="text-slate-700">Ambient Temperature (T<sub>amb</sub>)</label>
+                <span id="valTamb" class="font-bold text-sky-700">25 °C</span>
+              </div>
+              <input id="sliderTamb" type="range" min="15" max="45" step="1" value="25" class="w-full" />
+            </div>
+
+            <hr class="border-slate-100" />
+
+            <div>
+              <div class="flex justify-between text-xs font-medium mb-1">
+                <label for="sliderDcap" class="text-slate-700">DC-Link Capacitor Damage (D<sub>cap</sub>)</label>
+                <span id="valDcap" class="font-bold text-amber-700">0% (Healthy)</span>
+              </div>
+              <input id="sliderDcap" type="range" min="0" max="100" step="1" value="0" class="w-full" />
+              <p class="text-[11px] text-slate-400 mt-0.5">EOL at 100%: C drops 20% (5.44 mF) · ESR doubles (90 mΩ)</p>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-xs font-medium mb-1">
+                <label for="sliderDigbt" class="text-slate-700">IGBT Damage (D<sub>igbt</sub>)</label>
+                <span id="valDigbt" class="font-bold text-rose-700">0% (Healthy)</span>
+              </div>
+              <input id="sliderDigbt" type="range" min="0" max="100" step="1" value="0" class="w-full" />
+              <p class="text-[11px] text-slate-400 mt-0.5">EOL at 100%: V<sub>ce(on)</sub> +5% (1.575 V) · R<sub>th(j-c)</sub> +20% (1.44 K/W)</p>
+            </div>
+          </div>
+
+          <!-- Capacitor Health Index Progress -->
+          <div class="bg-slate-50 rounded-lg p-3 border border-slate-200 space-y-1.5">
+            <div class="flex justify-between text-xs font-semibold">
+              <span class="text-slate-600">Capacitor Health Index (HI)</span>
+              <span id="valHI" class="text-slate-900">0.00</span>
+            </div>
+            <div class="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+              <div id="barHI" class="h-full bg-emerald-500 transition-all duration-150" style="width: 2%"></div>
+            </div>
+            <p class="text-[11px] text-slate-500">0.00 = Brand New · 0.50 = Degraded · 1.00 = End-of-Life</p>
+          </div>
+        </div>
+
+        <!-- Right: Telemetry KPIs + Live Oscilloscopes -->
+        <div class="lg:col-span-8 space-y-4">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="bg-white rounded-xl border border-slate-200 p-3.5 shadow-sm">
+              <p class="text-[11px] font-medium text-slate-500">PV Power (MPPT)</p>
+              <p id="kpiPpv" class="text-xl font-bold text-slate-900 mt-0.5">200.5 W</p>
+              <p id="kpiEff" class="text-[11px] text-emerald-600 font-medium">Eff: 93.4%</p>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-200 p-3.5 shadow-sm">
+              <p class="text-[11px] font-medium text-slate-500">100 Hz Est. ESR</p>
+              <p id="kpiEsr" class="text-xl font-bold text-slate-900 mt-0.5">45.0 mΩ</p>
+              <p id="kpiCap" class="text-[11px] text-sky-600 font-medium">C<sub>est</sub>: 6.80 mF</p>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-200 p-3.5 shadow-sm">
+              <p class="text-[11px] font-medium text-slate-500">DC-Link Ripple (pk-pk)</p>
+              <p id="kpiRip" class="text-xl font-bold text-slate-900 mt-0.5">1.95 V</p>
+              <p id="kpiTcore" class="text-[11px] text-amber-600 font-medium">T<sub>core</sub>: 30.5 °C</p>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-200 p-3.5 shadow-sm">
+              <p class="text-[11px] font-medium text-slate-500">IGBT V<sub>ce(on)</sub> @ 10 A</p>
+              <p id="kpiVce" class="text-xl font-bold text-slate-900 mt-0.5">1.500 V</p>
+              <p id="kpiTj" class="text-[11px] text-rose-600 font-medium">T<sub>j</sub>: 45.2 °C (Δ4.4 K)</p>
+            </div>
+          </div>
+
+          <!-- Two Live Oscilloscopes -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="text-xs font-bold uppercase tracking-wide text-slate-700">DC-Link Voltage (100 Hz Ripple)</h3>
+                <span class="text-[11px] font-mono text-slate-400">Nominal 48.0 V</span>
+              </div>
+              <div class="relative h-52 bg-slate-950 rounded-lg overflow-hidden">
+                <canvas id="scopeVdc" class="w-full h-full block"></canvas>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="text-xs font-bold uppercase tracking-wide text-slate-700">Grid Voltage &amp; Current (50 Hz)</h3>
+                <span id="kpiThd" class="text-[11px] font-mono text-emerald-600 font-semibold">THD: 2.1% (&lt;5%)</span>
+              </div>
+              <div class="relative h-52 bg-slate-950 rounded-lg overflow-hidden">
+                <canvas id="scopeGrid" class="w-full h-full block"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: FLEET DATASET EXPLORER ==================== -->
+    <section id="tab-explorer" class="hidden space-y-6">
+      <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-sm font-bold text-slate-900">Run-to-Failure Fleet Explorer</h2>
+          <p id="explorerSubtitle" class="text-xs text-slate-500 mt-0.5">Showing illustrative physics preview (6 units). Click <strong>Upload dataset.csv</strong> above to inspect your 40-unit MATLAB data live!</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <label for="unitSelect" class="text-xs font-semibold text-slate-600">Inspect Inverter:</label>
+          <select id="unitSelect" class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold bg-white text-slate-800"></select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+          <h3 class="text-xs font-bold uppercase tracking-wide text-slate-700 mb-3">Capacitor Degradation: ESR<sub>est</sub> (mΩ) &amp; C<sub>est</sub> (mF) vs. Hours</h3>
+          <div class="relative h-72">
+            <canvas id="chartCapDeg"></canvas>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+          <h3 class="text-xs font-bold uppercase tracking-wide text-slate-700 mb-3">Remaining Useful Life (Hours) &amp; Health Index vs. Hours</h3>
+          <div class="relative h-72">
+            <canvas id="chartRulUnit"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-5 bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+          <h3 class="text-xs font-bold uppercase tracking-wide text-slate-700 mb-3">4-Class Health State Distribution (All Loaded Units)</h3>
+          <div class="relative h-64">
+            <canvas id="chartClassDist"></canvas>
+          </div>
+        </div>
+        <div class="lg:col-span-7 bg-white rounded-xl border border-slate-200 p-4 shadow-sm overflow-x-auto">
+          <h3 class="text-xs font-bold uppercase tracking-wide text-slate-700 mb-3">Physical Degradation Check (Spearman Rank Correlation)</h3>
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200 text-slate-500">
+                <th class="py-2 pr-3">Indicator Pair</th>
+                <th class="py-2 px-3 text-right">Spearman r</th>
+                <th class="py-2 px-3">Expected Direction</th>
+                <th class="py-2 pl-3">Status</th>
+              </tr>
+            </thead>
+            <tbody id="spearmanTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: MAINTENANCE COST LAB ==================== -->
+    <section id="tab-maintenance" class="hidden space-y-6">
+      <div class="bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-xs text-amber-900 flex items-center gap-2">
+        <i data-lucide="info" class="w-4 h-4 text-amber-600 shrink-0"></i>
+        <span><strong>ASSUMED Cost Parameters:</strong> Adjust the sliders below to test how planned vs. unplanned maintenance costs and the RUL alert threshold change fleet economics across all loaded inverter units.</span>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-4 bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-5">
+          <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wide">Policy Parameters</h2>
+
+          <div>
+            <div class="flex justify-between text-xs font-medium mb-1">
+              <label for="sliderCostPlan">Planned Replacement Cost</label>
+              <span id="valCostPlan" class="font-bold text-emerald-700">₹1,500</span>
+            </div>
+            <input id="sliderCostPlan" type="range" min="500" max="5000" step="100" value="1500" class="w-full" />
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs font-medium mb-1">
+              <label for="sliderCostFail">Unplanned Failure + Downtime Cost</label>
+              <span id="valCostFail" class="font-bold text-rose-700">₹6,500</span>
+            </div>
+            <input id="sliderCostFail" type="range" min="2500" max="15000" step="250" value="6500" class="w-full" />
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs font-medium mb-1">
+              <label for="sliderRulThresh">PdM Alert Threshold (RUL ≤)</label>
+              <span id="valRulThresh" class="font-bold text-sky-700">2,500 h</span>
+            </div>
+            <input id="sliderRulThresh" type="range" min="500" max="6000" step="250" value="2500" class="w-full" />
+          </div>
+
+          <div id="costSavingsBox" class="rounded-lg bg-emerald-50 border border-emerald-200 p-3.5">
+            <p class="text-xs font-semibold text-emerald-800">Estimated Savings with PdM</p>
+            <p id="valSavingsPct" class="text-2xl font-bold text-emerald-700 mt-0.5">—</p>
+            <p id="valSavingsSub" class="text-[11px] text-emerald-700 mt-0.5">Compared to Run-to-Failure per 10,000 h</p>
+          </div>
+        </div>
+
+        <div class="lg:col-span-8 bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-5">
+          <h3 class="text-xs font-bold uppercase tracking-wide text-slate-700">Average Maintenance Cost per 10,000 Operating Hours (INR)</h3>
+          <div class="relative h-64">
+            <canvas id="chartCostPolicy"></canvas>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="border-b border-slate-200 text-slate-500">
+                  <th class="py-2 pr-3">Maintenance Policy</th>
+                  <th class="py-2 px-3 text-right">Unplanned Failures</th>
+                  <th class="py-2 px-3 text-right">Avg Life Used (h)</th>
+                  <th class="py-2 pl-3 text-right">Cost / 10k Hours (INR)</th>
+                </tr>
+              </thead>
+              <tbody id="policyTableBody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: ARCHITECTURE & SPECS ==================== -->
+    <section id="tab-architecture" class="hidden space-y-6">
+      <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+        <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wide mb-4">Four-Layer Predictive Maintenance Architecture</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="rounded-xl p-4 bg-sky-50 border border-sky-200">
+            <div class="text-xs font-bold text-sky-700 uppercase mb-1">1. Physical Model (Fast)</div>
+            <p class="text-xs text-slate-700 leading-relaxed">Simulink 200 W PV Array → Boost (20 kHz, P&amp;O MPPT) → 48 V DC-Link (6.8 mF + ESR) → Full-Bridge Inverter (10 kHz Unipolar SPWM) → LC Filter → 24 V<sub>rms</sub> 50 Hz Grid + Foster RC thermal networks.</p>
+          </div>
+          <div class="rounded-xl p-4 bg-amber-50 border border-amber-200">
+            <div class="text-xs font-bold text-amber-700 uppercase mb-1">2. Ageing &amp; Features (Slow)</div>
+            <p class="text-xs text-slate-700 leading-relaxed">Two-time-scale MATLAB loop: Arrhenius 10 °C rule for capacitor + Coffin-Manson &amp; Miner's rule for IGBT. Online 100 Hz FFT extracts Z(2f) → ESR<sub>est</sub>, C<sub>est</sub> with realistic sensor noise.</p>
+          </div>
+          <div class="rounded-xl p-4 bg-indigo-50 border border-indigo-200">
+            <div class="text-xs font-bold text-indigo-700 uppercase mb-1">3. AI Analytics (Python)</div>
+            <p class="text-xs text-slate-700 leading-relaxed">Unit-level 70/15/15 split (zero leakage). Autoencoder vs. IsoForest/OCSVM anomaly detection; RF/SVM/MLP 4-class health classification (GroupKFold); LSTM/GRU sliding-window Capacitor RUL.</p>
+          </div>
+          <div class="rounded-xl p-4 bg-emerald-50 border border-emerald-200">
+            <div class="text-xs font-bold text-emerald-700 uppercase mb-1">4. Decision Support</div>
+            <p class="text-xs text-slate-700 leading-relaxed">Schedules preventive capacitor replacement when predicted RUL ≤ 2,500 h, balancing avoided breakdown costs against remaining useful capacitor life.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+          <h3 class="text-xs font-bold uppercase tracking-wide text-slate-700 mb-3">Key Hardware Design Values (Verified in Simulink)</h3>
+          <table class="w-full text-xs text-left border-collapse">
+            <tbody class="divide-y divide-slate-100">
+              <tr><td class="py-2 font-medium text-slate-600">PV Array (STC)</td><td class="py-2 text-right font-semibold">201 W (V<sub>mp</sub> = 30 V, I<sub>mp</sub> = 6.7 A, V<sub>oc</sub> = 37 V, I<sub>sc</sub> = 7.2 A)</td></tr>
+              <tr><td class="py-2 font-medium text-slate-600">Boost Converter</td><td class="py-2 text-right font-semibold">L<sub>b</sub> = 470 µH, C<sub>in</sub> = 220 µF, f<sub>sw</sub> = 20 kHz, D<sub>nom</sub> = 0.375</td></tr>
+              <tr><td class="py-2 font-medium text-slate-600">DC-Link Capacitor (Healthy)</td><td class="py-2 text-right font-semibold">V<sub>dc</sub> = 48 V, C<sub>0</sub> = 6.8 mF, ESR<sub>0</sub> = 45 mΩ</td></tr>
+              <tr><td class="py-2 font-medium text-slate-600">Inverter &amp; LC Filter</td><td class="py-2 text-right font-semibold">4 IGBTs (10 kHz Unipolar), L<sub>f</sub> = 1.2 mH, C<sub>f</sub> = 15 µF, R<sub>d</sub> = 1.5 Ω</td></tr>
+              <tr><td class="py-2 font-medium text-slate-600">AC Grid &amp; Standard</td><td class="py-2 text-right font-semibold">24 V<sub>rms</sub>, 50 Hz (Indian grid), THD &lt; 5% (IEEE 519)</td></tr>
+              <tr><td class="py-2 font-medium text-slate-600">EOL Criteria (Strict Scope)</td><td class="py-2 text-right font-semibold">Cap: C −20% or ESR ×2 · IGBT: V<sub>ce(on)</sub> +5% or R<sub>th(j-c)</sub> +20%</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-3">
+          <h3 class="text-xs font-bold uppercase tracking-wide text-slate-700">Honest Project Scope &amp; Limitations</h3>
+          <ul class="text-xs text-slate-600 space-y-2 list-disc pl-4 leading-relaxed">
+            <li><strong>Simulation-Only Study:</strong> All waveforms and degradation trajectories come from our MATLAB/Simulink physical model; no real outdoor field inverter data was collected.</li>
+            <li><strong>Illustrative, Time-Accelerated Constants:</strong> Arrhenius L<sub>0</sub> and Coffin-Manson A constants are scaled so units reach EOL cleanly within ~40 snapshots.</li>
+            <li><strong>Two Fault Mechanisms Only:</strong> Models DC-link capacitor wear-out (main RUL target) and IGBT bond-wire/solder fatigue (assumed equal across all 4 H-bridge IGBTs); excludes short/open-circuit or grid faults.</li>
+            <li><strong>Zero Reused Paper Metrics:</strong> Follows the four-layer architecture of Karim (TechRxiv, Oct 2025) without reusing any of its unverified accuracy figures.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-slate-200 bg-white py-3 px-4 text-center text-xs text-slate-400">
+    7th-Semester Electrical Engineering Minor Project · Predictive Maintenance of Solar Inverters · 100% Client-Side Interactive Showcase
+  </footer>
+
+  <script>
+    // =========================================================================
+    // 1. STATE & DEMO FLEET GENERATOR (Physics-based preview until CSV uploaded)
+    // =========================================================================
+    const BASE = {
+      C0: 6.8e-3, ESR0: 0.045, Vce0: 1.10, Rce0: 0.040, Rth0: 1.20,
+      Iref: 10.0, RthCap: 10.0, RthHs: 2.0, VdcRef: 48.0, VgridRms: 24.0, fGrid: 50
+    };
+
+    const CLASS_LABELS = ["0: Healthy", "1: Cap Degraded", "2: IGBT Degraded", "3: Both Degraded"];
+    const CLASS_COLORS = ["#10b981", "#f59e0b", "#f97316", "#ef4444"];
+
+    let fleetData = [];
+    let isRealCsv = false;
+    let charts = { cap: null, rul: null, cls: null, cost: null };
+
+    // Deterministic PRNG for repeatable demo preview
+    function mulberry32(seed) {
+      return function() {
+        let t = seed += 0x6D2B79F5;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function generateDemoFleet() {
+      const rand = mulberry32(42);
+      const rows = [];
+      for (let u = 1; u <= 6; u++) {
+        const L0 = 1750 + rand() * 550;
+        const igbtSpeed = 0.55 + rand() * 1.1;
+        let Dcap = 0, Digbt = 0, hrs = 0;
+        const unitRows = [];
+        for (let snap = 1; snap <= 45; snap++) {
+          const G = 400 + rand() * 600;
+          const Tamb = 15 + rand() * 30;
+          const fC = 0.40 * Dcap + 0.60 * Dcap * Dcap;
+          const fE = 0.35 * Dcap + 0.65 * Dcap * Dcap;
+          const Ctrue = BASE.C0 * (1 - 0.20 * fC);
+          const ESRtrue = BASE.ESR0 * (1 + 1.00 * fE);
+          const fR = 0.35 * Digbt + 0.65 * Digbt * Digbt;
+          const dRceEol = (0.05 * (BASE.Vce0 + BASE.Rce0 * BASE.Iref)) / BASE.Iref;
+          const Rcetrue = BASE.Rce0 + dRceEol * fR;
+          const Rthtrue = BASE.Rth0 * (1 + 0.20 * (0.4 * Digbt + 0.6 * Digbt * Digbt));
+
+          const Ppv = 201 * (G / 1000) * (1 - 0.003 * (Tamb - 25));
+          const IcapRms = 3.5 * (G / 1000);
+          const VdcRipPp = (Ppv / (2 * Math.PI * 50 * 48 * Ctrue)) + 2 * IcapRms * ESRtrue * 0.35;
+          const VceRef = (BASE.Vce0 + Rcetrue * BASE.Iref) * (1 + (rand() - 0.5) * 0.006);
+          const Pest = Math.max(0.3, 2.2 * (G / 1000) * (Rcetrue / BASE.Rce0));
+          const Ths = Tamb + 4 * Pest * BASE.RthHs;
+          const Tj = Ths + Pest * Rthtrue;
+
+          const capDeg = Dcap >= 0.50;
+          const igbtDeg = Digbt >= 0.50;
+          const label = (!capDeg && !igbtDeg) ? 0 : (capDeg && !igbtDeg) ? 1 : (!capDeg && igbtDeg) ? 2 : 3;
+
+          unitRows.push({
+            unit_id: u, snapshot: snap, hours: hrs, G_irr: G, T_amb: Tamb,
+            Vdc_ripple_pp: VdcRipPp, Vdc_ripple_rms: VdcRipPp / (2 * Math.sqrt(2)),
+            ESR_est: ESRtrue * (1 + (rand() - 0.5) * 0.04),
+            C_est: Ctrue * (1 + (rand() - 0.5) * 0.03),
+            Vce_on_ref: VceRef, Tj_mean: Tj,
+            D_cap: Dcap, D_igbt: Digbt, state_label: label, RUL_cap_hours: 0
+          });
+          if (Dcap >= 1.0) break;
+          const Tcore = Tamb + IcapRms * IcapRms * ESRtrue * BASE.RthCap;
+          const Lcap = L0 * Math.pow(2, (85 - Tcore) / 10);
+          Dcap += 850 / Math.max(Lcap, 1);
+          Digbt += (850 / Math.max(Lcap, 1)) * igbtSpeed;
+          hrs += 850;
+        }
+        const tEol = unitRows[unitRows.length - 1].hours;
+        unitRows.forEach(r => { r.RUL_cap_hours = Math.max(0, tEol - r.hours); rows.push(r); });
+      }
+      return rows;
+    }
+
+    // =========================================================================
+    // 2. TAB 1: LIVE PHYSICS SIMULATOR & OSCILLOSCOPES
+    // =========================================================================
+    let simPhase = 0;
+    let simTelemetry = {};
+
+    function computeLivePhysics() {
+      const G = Number(document.getElementById("sliderG").value);
+      const Tamb = Number(document.getElementById("sliderTamb").value);
+      const Dcap = Number(document.getElementById("sliderDcap").value) / 100;
+      const Digbt = Number(document.getElementById("sliderDigbt").value) / 100;
+
+      document.getElementById("valG").textContent = `${G} W/m²`;
+      document.getElementById("valTamb").textContent = `${Tamb} °C`;
+      document.getElementById("valDcap").textContent = `${Math.round(Dcap * 100)}% (${Dcap >= 1 ? "EOL" : Dcap >= 0.5 ? "Degraded" : "Healthy"})`;
+      document.getElementById("valDigbt").textContent = `${Math.round(Digbt * 100)}% (${Digbt >= 1 ? "EOL" : Digbt >= 0.5 ? "Degraded" : "Healthy"})`;
+
+      // Physical ageing curves (exact match to ageing_engine.m)
+      const fC = 0.40 * Dcap + 0.60 * Dcap * Dcap;
+      const fE = 0.35 * Dcap + 0.65 * Dcap * Dcap;
+      const Cdc = BASE.C0 * (1 - 0.20 * fC);
+      const ESR = BASE.ESR0 * (1 + 1.00 * fE);
+
+      const fRce = 0.35 * Digbt + 0.65 * Digbt * Digbt;
+      const fRth = 0.40 * Digbt + 0.60 * Digbt * Digbt;
+      const VceH = BASE.Vce0 + BASE.Rce0 * BASE.Iref;
+      const dRceEol = (0.05 * VceH) / BASE.Iref;
+      const Rce = BASE.Rce0 + dRceEol * fRce;
+      const Rth = BASE.Rth0 * (1 + 0.20 * fRth);
+
+      const Tpv = Tamb + 0.025 * G;
+      const Ppv = Math.max(10, 201.0 * (G / 1000) * (1 - 0.0032 * (Tpv - 25)));
+      const IcapRms = 3.5 * (G / 1000);
+      const VripC = Ppv / (2 * Math.PI * BASE.fGrid * BASE.VdcRef * Cdc);
+      const VripEsr = 2 * Math.sqrt(2) * (Ppv / (Math.sqrt(2) * BASE.VdcRef)) * ESR;
+      const VripPp = Math.sqrt(VripC * VripC + VripEsr * VripEsr);
+
+      const Tcore = Tamb + IcapRms * IcapRms * ESR * BASE.RthCap;
+      const VceOn = BASE.Vce0 + Rce * BASE.Iref;
+      const PlossIgbt = 2.2 * (G / 1000) * (Rce / BASE.Rce0);
+      const Ths = Tamb + 4 * PlossIgbt * BASE.RthHs;
+      const TjMean = Ths + PlossIgbt * Rth;
+      const TjSwing = 4.4 * (G / 1000) * (Rth / BASE.Rth0);
+
+      const capLoss = IcapRms * IcapRms * ESR;
+      const eff = Math.max(82, Math.min(96.5, 100 * (Ppv - 4 * PlossIgbt - capLoss - 3.0) / Ppv));
+      const thd = 1.9 + 1.6 * Dcap + 0.6 * (1 - G / 1000);
+
+      // Health Index & Arrhenius Remaining Life
+      const hi = Math.min(1.15, Math.max(0, 0.45 * ((ESR - BASE.ESR0) / BASE.ESR0) + 0.40 * ((BASE.C0 - Cdc) / (0.20 * BASE.C0)) + 0.15 * Math.max(0, (VripPp - 1.95) / 0.65)));
+      const Lcurr = 2000 * Math.pow(2, (85 - Tcore) / 10);
+      const rulHours = Math.max(0, Math.round((1 - Dcap) * Lcurr));
+
+      // Health State & Anomaly
+      const capDeg = Dcap >= 0.50;
+      const igbtDeg = Digbt >= 0.50;
+      const stateIdx = (!capDeg && !igbtDeg) ? 0 : (capDeg && !igbtDeg) ? 1 : (!capDeg && igbtDeg) ? 2 : 3;
+      const isAnom = Dcap >= 0.35 || Digbt >= 0.35;
+
+      // Update KPI Cards
+      document.getElementById("kpiPpv").textContent = `${Ppv.toFixed(1)} W`;
+      document.getElementById("kpiEff").textContent = `Eff: ${eff.toFixed(1)}%`;
+      document.getElementById("kpiEsr").textContent = `${(ESR * 1e3).toFixed(1)} mΩ`;
+      document.getElementById("kpiCap").innerHTML = `C<sub>est</sub>: ${(Cdc * 1e3).toFixed(2)} mF`;
+      document.getElementById("kpiRip").textContent = `${VripPp.toFixed(2)} V`;
+      document.getElementById("kpiTcore").innerHTML = `T<sub>core</sub>: ${Tcore.toFixed(1)} °C`;
+      document.getElementById("kpiVce").textContent = `${VceOn.toFixed(3)} V`;
+      document.getElementById("kpiTj").innerHTML = `T<sub>j</sub>: ${TjMean.toFixed(1)} °C (Δ${TjSwing.toFixed(1)} K)`;
+      document.getElementById("kpiThd").textContent = `THD: ${thd.toFixed(1)}% (${thd < 5 ? "<5% OK" : ">5%!"})`;
+      document.getElementById("kpiThd").className = `text-[11px] font-mono font-semibold ${thd < 5 ? "text-emerald-600" : "text-rose-600"}`;
+
+      document.getElementById("valHI").textContent = hi.toFixed(2);
+      const barHI = document.getElementById("barHI");
+      barHI.style.width = `${Math.min(100, Math.max(2, hi * 100))}%`;
+      barHI.className = `h-full transition-all duration-150 ${hi < 0.5 ? "bg-emerald-500" : hi < 0.85 ? "bg-amber-500" : "bg-rose-500"}`;
+
+      document.getElementById("simRulDisplay").textContent = `${rulHours.toLocaleString()} h`;
+      const stateBadge = document.getElementById("simStateBadge");
+      stateBadge.textContent = CLASS_LABELS[stateIdx];
+      stateBadge.style.backgroundColor = CLASS_COLORS[stateIdx];
+
+      const anomBadge = document.getElementById("simAnomalyBadge");
+      anomBadge.textContent = isAnom ? "Anomaly Flagged (AE > Thresh)" : "Normal Baseline";
+      anomBadge.className = `px-2.5 py-0.5 rounded-full text-xs font-semibold ${isAnom ? "bg-rose-100 text-rose-700" : "bg-slate-200 text-slate-700"}`;
+
+      const banner = document.getElementById("decisionBanner");
+      const actionText = document.getElementById("simActionText");
+      if (Dcap >= 0.95 || rulHours <= 500) {
+        banner.className = "rounded-xl p-4 border flex flex-wrap items-center justify-between gap-4 bg-rose-50 border-rose-200";
+        actionText.textContent = "CRITICAL: DC-link capacitor at End-of-Life. Immediate replacement required to prevent inverter trip.";
+      } else if (rulHours <= 2500 || stateIdx > 0) {
+        banner.className = "rounded-xl p-4 border flex flex-wrap items-center justify-between gap-4 bg-amber-50 border-amber-200";
+        actionText.textContent = rulHours <= 2500
+          ? "SCHEDULE MAINTENANCE: Predicted capacitor RUL dropped below 2,500 h threshold. Book planned replacement."
+          : "EARLY DEGRADATION DETECTED: Monitor closely and plan component inspection at next service window.";
+      } else {
+        banner.className = "rounded-xl p-4 border flex flex-wrap items-center justify-between gap-4 bg-emerald-50 border-emerald-200";
+        actionText.textContent = "All electrical and thermal indicators are within healthy bounds. Continue routine monitoring.";
+      }
+
+      simTelemetry = { Ppv, VripPp, IgridPk: Math.sqrt(2) * (Ppv * eff / 100) / BASE.VgridRms, thd };
+    }
+
+    function drawScopes() {
+      simPhase += 0.06;
+      drawVdcScope();
+      drawGridScope();
+      requestAnimationFrame(drawScopes);
+    }
+
+    function drawVdcScope() {
+      const c = document.getElementById("scopeVdc");
+      if (!c || c.offsetWidth === 0) return;
+      const dpr = window.devicePixelRatio || 1;
+      const w = c.offsetWidth, h = c.offsetHeight;
+      if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) {
+        c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+      }
+      const ctx = c.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = "#020617";
+      ctx.fillRect(0, 0, w, h);
+
+      // Grid lines
+      ctx.strokeStyle = "#1e293b";
+      ctx.lineWidth = 1;
+      for (let i = 1; i < 4; i++) {
+        ctx.beginPath(); ctx.moveTo(0, (h / 4) * i); ctx.lineTo(w, (h / 4) * i); ctx.stroke();
+      }
+      // 48V center line
+      ctx.strokeStyle = "#334155";
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 100 Hz ripple trace (scale: +/- 3.0 V spans full height)
+      const ampPx = ((simTelemetry.VripPp || 2.0) / 2) * (h / 6.2);
+      ctx.strokeStyle = "#38bdf8";
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      for (let x = 0; x <= w; x += 2) {
+        const theta = (x / w) * 4 * Math.PI * 2 + simPhase; // 4 cycles of 100 Hz
+        const y = h / 2 - ampPx * Math.sin(theta) - (ampPx * 0.06) * Math.sin(theta * 9);
+        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "11px Inter, sans-serif";
+      ctx.fillText("51 V", 8, 16);
+      ctx.fillText("48 V", 8, h / 2 - 4);
+      ctx.fillText("45 V", 8, h - 8);
+    }
+
+    function drawGridScope() {
+      const c = document.getElementById("scopeGrid");
+      if (!c || c.offsetWidth === 0) return;
+      const dpr = window.devicePixelRatio || 1;
+      const w = c.offsetWidth, h = c.offsetHeight;
+      if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) {
+        c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+      }
+      const ctx = c.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = "#020617";
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.strokeStyle = "#1e293b";
+      ctx.lineWidth = 1;
+      for (let i = 1; i < 4; i++) {
+        ctx.beginPath(); ctx.moveTo(0, (h / 4) * i); ctx.lineTo(w, (h / 4) * i); ctx.stroke();
+      }
+
+      // Grid Voltage (50 Hz, 33.9 V pk)
+      ctx.strokeStyle = "#f59e0b";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let x = 0; x <= w; x += 2) {
+        const th = (x / w) * 2 * Math.PI * 2 + simPhase * 0.5;
+        const y = h / 2 - (h * 0.38) * Math.sin(th);
+        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // Grid Current (in-phase with voltage, scaled by IgridPk)
+      const iScale = Math.min(1, (simTelemetry.IgridPk || 10) / 13) * (h * 0.34);
+      const harm = ((simTelemetry.thd || 2) / 100) * 1.4;
+      ctx.strokeStyle = "#10b981";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let x = 0; x <= w; x += 2) {
+        const th = (x / w) * 2 * Math.PI * 2 + simPhase * 0.5;
+        const y = h / 2 - iScale * (Math.sin(th) + harm * Math.sin(3 * th) + harm * 0.5 * Math.sin(5 * th));
+        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      ctx.font = "11px Inter, sans-serif";
+      ctx.fillStyle = "#f59e0b"; ctx.fillText("— V_grid (24 Vrms)", 8, 16);
+      ctx.fillStyle = "#10b981"; ctx.fillText("— I_grid (50 Hz)", 125, 16);
+    }
+
+    // =========================================================================
+    // 3. TAB 2: FLEET DATASET EXPLORER & SPEARMAN CHECK
+    // =========================================================================
+    function spearmanRank(x, y) {
+      const n = x.length;
+      if (n < 3) return 0;
+      const rank = arr => {
+        const idx = arr.map((v, i) => [v, i]).sort((a, b) => a[0] - b[0]);
+        const r = new Array(n);
+        for (let i = 0; i < n; i++) r[idx[i][1]] = i + 1;
+        return r;
+      };
+      const rx = rank(x), ry = rank(y);
+      const mx = rx.reduce((a, b) => a + b, 0) / n;
+      const my = ry.reduce((a, b) => a + b, 0) / n;
+      let num = 0, dx = 0, dy = 0;
+      for (let i = 0; i < n; i++) {
+        num += (rx[i] - mx) * (ry[i] - my);
+        dx += (rx[i] - mx) ** 2;
+        dy += (ry[i] - my) ** 2;
+      }
+      return num / Math.max(Math.sqrt(dx * dy), 1e-12);
+    }
+
+    function refreshFleetExplorer() {
+      const units = [...new Set(fleetData.map(r => r.unit_id))].sort((a, b) => a - b);
+      const sel = document.getElementById("unitSelect");
+      const prevVal = Number(sel.value);
+      sel.innerHTML = "";
+      units.forEach(u => {
+        const opt = document.createElement("option");
+        opt.value = u;
+        opt.textContent = `Unit ${u}`;
+        sel.appendChild(opt);
+      });
+      if (units.includes(prevVal)) sel.value = prevVal;
+
+      renderSelectedUnitCharts();
+      renderClassDistribution();
+      renderSpearmanTable();
+    }
+
+    function renderSelectedUnitCharts() {
+      const uid = Number(document.getElementById("unitSelect").value);
+      const sub = fleetData.filter(r => r.unit_id === uid).sort((a, b) => a.hours - b.hours);
+      const labels = sub.map(r => Math.round(r.hours));
+
+      // Chart 1: ESR & C
+      if (charts.cap) charts.cap.destroy();
+      charts.cap = new Chart(document.getElementById("chartCapDeg"), {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            { label: "ESR_est (mΩ)", data: sub.map(r => +(r.ESR_est * 1e3).toFixed(2)), borderColor: "#ef4444", backgroundColor: "rgba(239,68,68,0.1)", yAxisID: "y", tension: 0.25 },
+            { label: "C_est (mF)", data: sub.map(r => +(r.C_est * 1e3).toFixed(3)), borderColor: "#0284c7", backgroundColor: "rgba(2,132,199,0.1)", yAxisID: "y1", tension: 0.25 }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          scales: {
+            x: { title: { display: true, text: "Equivalent Operating Hours" } },
+            y: { type: "linear", position: "left", title: { display: true, text: "ESR (mΩ)" } },
+            y1: { type: "linear", position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "Capacitance (mF)" } }
+          }
+        }
+      });
+
+      // Chart 2: RUL & HI
+      const hiSeries = sub.map(r => {
+        const hi = 0.5 * ((r.ESR_est - BASE.ESR0) / BASE.ESR0) + 0.5 * ((BASE.C0 - r.C_est) / (0.2 * BASE.C0));
+        return +Math.max(0, Math.min(1.2, hi)).toFixed(2);
+      });
+      if (charts.rul) charts.rul.destroy();
+      charts.rul = new Chart(document.getElementById("chartRulUnit"), {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            { label: "True Cap RUL (h)", data: sub.map(r => Math.round(r.RUL_cap_hours)), borderColor: "#0f172a", yAxisID: "y", tension: 0.1 },
+            { label: "Health Index (0→1)", data: hiSeries, borderColor: "#10b981", borderDash: [5, 3], yAxisID: "y1", tension: 0.25 }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          scales: {
+            x: { title: { display: true, text: "Equivalent Operating Hours" } },
+            y: { type: "linear", position: "left", title: { display: true, text: "Remaining Useful Life (h)" } },
+            y1: { type: "linear", position: "right", min: 0, max: 1.2, grid: { drawOnChartArea: false }, title: { display: true, text: "Health Index" } }
+          }
+        }
+      });
+    }
+
+    function renderClassDistribution() {
+      const counts = [0, 0, 0, 0];
+      fleetData.forEach(r => { if (r.state_label >= 0 && r.state_label <= 3) counts[r.state_label]++; });
+      if (charts.cls) charts.cls.destroy();
+      charts.cls = new Chart(document.getElementById("chartClassDist"), {
+        type: "bar",
+        data: {
+          labels: CLASS_LABELS,
+          datasets: [{ label: "Snapshots", data: counts, backgroundColor: CLASS_COLORS, borderRadius: 6 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, title: { display: true, text: "Row Count" } } }
+        }
+      });
+    }
+
+    function renderSpearmanTable() {
+      const checks = [
+        { name: "D_cap vs. ESR_est", x: "D_cap", y: "ESR_est", exp: "> +0.70", pass: r => r > 0.70 },
+        { name: "D_cap vs. C_est", x: "D_cap", y: "C_est", exp: "< −0.70", pass: r => r < -0.70 },
+        { name: "D_igbt vs. Vce_on_ref", x: "D_igbt", y: "Vce_on_ref", exp: "> +0.50", pass: r => r > 0.50 },
+        { name: "D_cap vs. Vdc_ripple_pp", x: "D_cap", y: "Vdc_ripple_pp", exp: "Positive", pass: r => r > 0.20 }
+      ];
+      const tbody = document.getElementById("spearmanTableBody");
+      tbody.innerHTML = checks.map(c => {
+        const r = spearmanRank(fleetData.map(row => row[c.x]), fleetData.map(row => row[c.y]));
+        const ok = c.pass(r);
+        return `<tr>
+          <td class="py-2.5 pr-3 font-medium text-slate-800">${c.name}</td>
+          <td class="py-2.5 px-3 text-right font-mono font-bold ${ok ? "text-emerald-700" : "text-amber-600"}">${r >= 0 ? "+" : ""}${r.toFixed(3)}</td>
+          <td class="py-2.5 px-3 text-slate-500">${c.exp}</td>
+          <td class="py-2.5 pl-3"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${ok ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}">${ok ? "Verified" : "Check"}</span></td>
+        </tr>`;
+      }).join("");
+    }
+
+    // =========================================================================
+    // 4. TAB 3: MAINTENANCE COST LAB
+    // =========================================================================
+    function refreshMaintenanceLab() {
+      const cPlan = Number(document.getElementById("sliderCostPlan").value);
+      const cFail = Number(document.getElementById("sliderCostFail").value);
+      const rulThresh = Number(document.getElementById("sliderRulThresh").value);
+
+      document.getElementById("valCostPlan").textContent = `₹${cPlan.toLocaleString()}`;
+      document.getElementById("valCostFail").textContent = `₹${cFail.toLocaleString()}`;
+      document.getElementById("valRulThresh").textContent = `${rulThresh.toLocaleString()} h`;
+
+      const units = [...new Set(fleetData.map(r => r.unit_id))];
+      const eolHours = units.map(u => {
+        const sub = fleetData.filter(r => r.unit_id === u);
+        return Math.max(...sub.map(r => r.hours));
+      });
+      const sortedEol = [...eolHours].sort((a, b) => a - b);
+      const tFixed = sortedEol[Math.max(0, Math.floor(0.25 * (sortedEol.length - 1)))] || 10000;
+
+      const agg = {
+        "Run-to-Failure": { fails: 0, lifeSum: 0, cost10kSum: 0 },
+        "Fixed-Interval": { fails: 0, lifeSum: 0, cost10kSum: 0 },
+        "Predictive (PdM)": { fails: 0, lifeSum: 0, cost10kSum: 0 }
+      };
+
+      units.forEach(u => {
+        const sub = fleetData.filter(r => r.unit_id === u).sort((a, b) => a.hours - b.hours);
+        const tEol = Math.max(1, sub[sub.length - 1].hours);
+
+        // 1. Run-to-Failure
+        agg["Run-to-Failure"].fails += 1;
+        agg["Run-to-Failure"].lifeSum += tEol;
+        agg["Run-to-Failure"].cost10kSum += cFail * (10000 / tEol);
+
+        // 2. Fixed-Interval
+        if (tEol >= tFixed) {
+          agg["Fixed-Interval"].lifeSum += tFixed;
+          agg["Fixed-Interval"].cost10kSum += cPlan * (10000 / Math.max(1, tFixed));
+        } else {
+          agg["Fixed-Interval"].fails += 1;
+          agg["Fixed-Interval"].lifeSum += tEol;
+          agg["Fixed-Interval"].cost10kSum += cFail * (10000 / tEol);
+        }
+
+        // 3. Predictive Maintenance (triggers when RUL <= rulThresh before EOL)
+        const alertRow = sub.find(r => r.RUL_cap_hours <= rulThresh && r.hours < tEol);
+        if (alertRow) {
+          const tRep = Math.max(1, alertRow.hours);
+          agg["Predictive (PdM)"].lifeSum += tRep;
+          agg["Predictive (PdM)"].cost10kSum += cPlan * (10000 / tRep);
+        } else {
+          agg["Predictive (PdM)"].fails += 1;
+          agg["Predictive (PdM)"].lifeSum += tEol;
+          agg["Predictive (PdM)"].cost10kSum += cFail * (10000 / tEol);
+        }
+      });
+
+      const n = Math.max(1, units.length);
+      const policies = Object.keys(agg);
+      const costs = policies.map(p => Math.round(agg[p].cost10kSum / n));
+
+      const savPct = costs[0] > 0 ? Math.round(100 * (costs[0] - costs[2]) / costs[0]) : 0;
+      document.getElementById("valSavingsPct").textContent = `${savPct}% lower cost`;
+      document.getElementById("valSavingsSub").textContent = `₹${costs[2].toLocaleString()} vs ₹${costs[0].toLocaleString()} per 10,000 h (${n} units)`;
+
+      document.getElementById("policyTableBody").innerHTML = policies.map((p, i) => `
+        <tr class="${i === 2 ? "bg-emerald-50/60 font-semibold" : ""}">
+          <td class="py-2.5 pr-3 text-slate-800">${p}</td>
+          <td class="py-2.5 px-3 text-right">${agg[p].fails} / ${n}</td>
+          <td class="py-2.5 px-3 text-right">${Math.round(agg[p].lifeSum / n).toLocaleString()}</td>
+          <td class="py-2.5 pl-3 text-right font-mono">₹${costs[i].toLocaleString()}</td>
+        </tr>
+      `).join("");
+
+      if (charts.cost) charts.cost.destroy();
+      charts.cost = new Chart(document.getElementById("chartCostPolicy"), {
+        type: "bar",
+        data: {
+          labels: policies,
+          datasets: [{
+            label: "Avg Cost / 10k Hours (INR)",
+            data: costs,
+            backgroundColor: ["#ef4444", "#f59e0b", "#10b981"],
+            borderRadius: 8
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, title: { display: true, text: "INR per 10,000 Operating Hours" } } }
+        }
+      });
+    }
+
+    // =========================================================================
+    // 5. CSV PARSER (Uploads user's real MATLAB dataset.csv client-side)
+    // =========================================================================
+    function showToast(msg) {
+      const el = document.getElementById("toastBanner");
+      document.getElementById("toastText").textContent = msg;
+      el.classList.remove("hidden");
+      setTimeout(() => el.classList.add("hidden"), 3500);
+    }
+
+    function parseCsvText(text) {
+      const lines = text.trim().split(/\r?\n/);
+      if (lines.length < 2) return null;
+      const headers = lines[0].split(",").map(h => h.trim());
+      const req = ["unit_id", "hours", "ESR_est", "C_est", "Vce_on_ref", "D_cap", "D_igbt", "state_label", "RUL_cap_hours"];
+      for (const r of req) {
+        if (!headers.includes(r)) return null;
+      }
+      const parsed = [];
+      for (let i = 1; i < lines.length; i++) {
+        const parts = lines[i].split(",");
+        if (parts.length !== headers.length) continue;
+        const obj = {};
+        headers.forEach((h, idx) => { obj[h] = Number(parts[idx]); });
+        if (!Number.isNaN(obj.unit_id)) parsed.push(obj);
+      }
+      return parsed.length > 0 ? parsed : null;
+    }
+
+    // =========================================================================
+    // 6. EVENT LISTENERS & INITIALIZATION
+    // =========================================================================
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.lucide) lucide.createIcons();
+
+      // Tab switching
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          const target = btn.getAttribute("data-tab");
+          ["simulator", "explorer", "maintenance", "architecture"].forEach(t => {
+            document.getElementById(`tab-${t}`).classList.toggle("hidden", t !== target);
+          });
+          if (target === "explorer") refreshFleetExplorer();
+          if (target === "maintenance") refreshMaintenanceLab();
+        });
+      });
+
+      // Simulator sliders
+      ["sliderG", "sliderTamb", "sliderDcap", "sliderDigbt"].forEach(id => {
+        document.getElementById(id).addEventListener("input", computeLivePhysics);
+      });
+
+      // Simulator presets
+      const presets = {
+        healthy: { G: 1000, Tamb: 25, Dcap: 0, Digbt: 0 },
+        cap:     { G: 850,  Tamb: 35, Dcap: 78, Digbt: 15 },
+        igbt:    { G: 900,  Tamb: 38, Dcap: 20, Digbt: 82 },
+        both:    { G: 950,  Tamb: 42, Dcap: 96, Digbt: 92 }
+      };
+      document.querySelectorAll(".preset-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const p = presets[btn.getAttribute("data-preset")];
+          document.getElementById("sliderG").value = p.G;
+          document.getElementById("sliderTamb").value = p.Tamb;
+          document.getElementById("sliderDcap").value = p.Dcap;
+          document.getElementById("sliderDigbt").value = p.Digbt;
+          computeLivePhysics();
+        });
+      });
+
+      // Fleet selector & cost sliders
+      document.getElementById("unitSelect").addEventListener("change", renderSelectedUnitCharts);
+      ["sliderCostPlan", "sliderCostFail", "sliderRulThresh"].forEach(id => {
+        document.getElementById(id).addEventListener("input", refreshMaintenanceLab);
+      });
+
+      // CSV Upload
+      document.getElementById("csvFileInput").addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const parsed = parseCsvText(ev.target.result);
+          if (!parsed) {
+            showToast("Invalid CSV format — please upload dataset.csv from MATLAB.");
+            return;
+          }
+          fleetData = parsed;
+          isRealCsv = true;
+          const nUnits = new Set(parsed.map(r => r.unit_id)).size;
+          const badge = document.getElementById("dataStatusBadge");
+          badge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-200 border border-emerald-400/30";
+          badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span>MATLAB CSV (${nUnits} Units, ${parsed.length} Rows)`;
+          document.getElementById("explorerSubtitle").textContent = `Loaded your MATLAB dataset.csv (${nUnits} run-to-failure units, ${parsed.length} snapshots).`;
+          refreshFleetExplorer();
+          refreshMaintenanceLab();
+          showToast(`Loaded ${file.name} (${nUnits} units, ${parsed.length} rows)!`);
+        };
+        reader.readAsText(file);
+      });
+
+      // Boot
+      fleetData = generateDemoFleet();
+      computeLivePhysics();
+      refreshFleetExplorer();
+      refreshMaintenanceLab();
+      requestAnimationFrame(drawScopes);
+    });
+  </script>
+</body>
+</html>
